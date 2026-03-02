@@ -1,199 +1,122 @@
 # BMAD Agent Installer
 
-A framework-agnostic installer for BMAD agents that works with or without the BMAD module system.
+A pure bash installer for BMAD agents. No Node.js required.
 
-## Overview
-
-This installer:
-- Copies agent definition files to the target project
-- Updates the BMAD agent manifest (if it exists)
-- Configures platform-specific integrations
-
-## Installation Options
-
-### 1. As BMAD Module Installer
-
-If you're creating a BMAD module that includes agents, reference this installer:
-
-```yaml
-# module.yaml
-installer:
-  type: agents
-  source: _bmad/bmb/agents/_agent-installer
-```
-
-### 2. Standalone Installation
-
-Run directly from command line:
+## Quick Install
 
 ```bash
-# Install all agents
-node _bmad/bmb/agents/_agent-installer/installer.js /path/to/project
+# Install to current directory
+curl -sL https://raw.githubusercontent.com/nsanta/on-my-agents/main/install.sh | bash
+
+# Install to specific directory
+curl -sL https://raw.githubusercontent.com/nsanta/on-my-agents/main/install.sh | bash -s /path/to/project
 
 # Install specific agents
-node _bmad/bmb/agents/_agent-installer/installer.js /path/to/project archibald ethan
+curl -sL https://raw.githubusercontent.com/nsanta/on-my-agents/main/install.sh | bash -s /path/to/project archibald ethan
 ```
 
-### 3. As NPM Package
+## Clone & Run
 
-```javascript
-const { install } = require('./_bmad/bmb/agents/_agent-installer/installer.js');
+```bash
+git clone git@github.com:nsanta/on-my-agents.git
+cd on-my-agents
 
-await install({
-  projectRoot: '/my/project',
-  config: { /* module config */ },
-  installedIDEs: ['claude-code', 'windsurf'],
-  logger: console
-});
+# Install all agents
+./install.sh /path/to/project
+
+# Install specific agents
+./install.sh /path/to/project archibald ethan
 ```
 
-### 4. BMAD Context
+## Usage
 
-For full BMAD integration:
+```bash
+./install.sh [project_root] [agents...]
 
-```javascript
-const { install } = require('./_bmad/bmb/agents/_agent-installer/bmad-installer.js');
+# Install all agents to current directory
+./install.sh .
 
-await install({
-  projectRoot: '/my/project',
-  config: { /* module config */ },
-  installedIDEs: ['claude-code'],
-  logger: console
-});
+# Install all agents to specific directory
+./install.sh /my/project
+
+# Install specific agents
+./install.sh /my/project archibald ethan
 ```
 
 ## Directory Structure
 
 ```
-_agent-installer/
-├── installer.js           # Framework-agnostic installer
-├── bmad-installer.js     # BMAD-specific wrapper
-├── README.md             # This file
-└── platform-specifics/    # IDE-specific configurations
-    ├── claude-code.js    # Claude Code integration
-    ├── opencode.js       # OpenCode integration
-    ├── windsurf.js       # Windsurf IDE integration
-    └── cursor.js         # Cursor IDE integration
-```
-_agent-installer/
-├── installer.js           # Framework-agnostic installer
-├── bmad-installer.js     # BMAD-specific wrapper
-├── README.md             # This file
-└── platform-specifics/    # IDE-specific configurations
-    ├── claude-code.js    # Claude Code integration
-    ├── windsurf.js       # Windsurf IDE integration
-    └── cursor.js         # Cursor IDE integration
+on-my-agents/
+├── install.sh              # Main installer (bash)
+├── README.md               # This file
+├── agents/                 # Place agent .md files here
+└── platform-specifics/      # IDE-specific handlers
+    ├── claude-code.sh     # Claude Code
+    ├── opencode.sh        # OpenCode
+    ├── windsurf.sh        # Windsurf
+    └── cursor.sh          # Cursor
 ```
 
-## Configuration
+## Adding Agents
 
-### Options
+Place your agent `.md` files in the `agents/` directory:
 
-| Option | Type | Description |
-|--------|------|-------------|
-| `projectRoot` | string | Target project root directory |
-| `config` | object | Module configuration |
-| `installedIDEs` | array | List of installed IDEs |
-| `logger` | object | Logger with log/warn/error methods |
-| `agentsToInstall` | array | Specific agents to install (optional) |
-| `bmadContext` | object | BMAD-specific context |
-
-### BMAD Context
-
-```javascript
-{
-  updateManifest: true,    // Update agent-manifest.csv
-  createBackup: true,      // Backup before overwriting
-  agentsSourceDir: '...',  // Override source directory
-  manifestPath: '...'      // Override manifest path
-}
+```bash
+cp /path/to/my-agent.md agents/
 ```
 
-## Platform Support
+Then run the installer to distribute to projects.
 
-- ✅ Claude Code
-- ✅ OpenCode
-- ✅ Windsurf  
-- ✅ Cursor
-- ✅ VS Code (coming soon)
+## Platform Detection
 
-- ✅ Claude Code
-- ✅ Windsurf  
-- ✅ Cursor
-- ✅ VS Code (coming soon)
+The installer automatically detects platforms by checking for:
+- `.claude/` directory → Claude Code
+- `.opencode/` directory → OpenCode
+- `.windsurf/` directory → Windsurf
+- `.cursor/` directory → Cursor
 
-## Adding Platform Handlers
+You can also explicitly specify platforms:
 
-Create a file in `platform-specifics/{platform-code}.js`:
-
-```javascript
-async function install(options) {
-  const { projectRoot, config, logger } = options;
-  // Your configuration logic
-  return true;
-}
-
-module.exports = { install };
+```bash
+./install.sh /project claude-code opencode
 ```
+
+## Manual Platform Install
+
+```bash
+# Install for specific platform only
+./install.sh /project opencode
+```
+
+## Requirements
+
+- Bash 4.0+
+- Standard Unix tools: `cp`, `mkdir`, `grep`, `sed`, `md5sum`
+
+## What It Does
+
+1. **Copies agent files** to `_bmad/bmb/agents/`
+2. **Updates manifest** at `_bmad/_config/agent-manifest.csv`
+3. **Configures platforms** by copying agents to IDE-specific directories
 
 ## Examples
 
-### Install all agents to new project
+### Install to new project
 
 ```bash
-node _bmad/bmb/agents/_agent-installer/installer.js /my-new-project
+curl -sL https://raw.githubusercontent.com/nsanta/on-my-agents/main/install.sh | bash -s ~/my-new-project
 ```
 
-### Install specific agents
+### CI/CD Usage
 
 ```bash
-node installer.js /project archibald ethan
+- name: Install BMAD Agents
+  run: |
+    curl -sL https://raw.githubusercontent.com/nsanta/on-my-agents/main/install.sh | bash -s ${{ github.workspace }}
 ```
 
-### Programmatic usage
+### Docker
 
-```javascript
-const installer = require('./installer.js');
-
-await installer.install({
-  projectRoot: './my-project',
-  logger: {
-    log: console.log.bind(console),
-    warn: console.warn.bind(console),
-    error: console.error.bind(console)
-  }
-});
-```
-
-## Agent Manifest
-
-The installer automatically updates `_bmad/_config/agent-manifest.csv` with new agents:
-
-```csv
-#WV|name,displayName,title,icon,role,identity,communicationStyle,principles,module,path
-...
-#AB|"archibald","Archibald","Enhanced Agent Architect","🏗️",...
-```
-
-## Troubleshooting
-
-### "Unknown platform" warning
-
-This is normal - some IDEs don't have specific handlers yet. Agents still install correctly.
-
-### Agent not appearing in manifest
-
-Check that:
-1. Agent .md file exists in `_bmad/bmb/agents/`
-2. Agent file has valid `name:` and `title:` fields
-
-### Installation fails silently
-
-Run with verbose logging:
-```javascript
-const logger = {
-  log: (...args) => console.log('[INFO]', ...args),
-  warn: (...args) => console.warn('[WARN]', ...args),
-  error: (...args) => console.error('[ERROR]', ...args)
-};
+```dockerfile
+RUN curl -sL https://raw.githubusercontent.com/nsanta/on-my-agents/main/install.sh | bash -s /app
 ```

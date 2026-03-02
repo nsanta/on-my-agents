@@ -4,12 +4,12 @@
 # Pure bash installer for BMAD agents
 #
 # Usage:
-#   ./install.sh [project_root] [agents...]
+#   curl -sL https://raw.githubusercontent.com/nsanta/on-my-agents/main/install.sh | bash -s /path/to/project
+#   curl -sL https://raw.githubusercontent.com/nsanta/on-my-agents/main/install.sh | bash -s - archibald ethan
 #
 # Examples:
 #   ./install.sh /path/to/project              # Install all agents
 #   ./install.sh /path/to/project archibald    # Install specific agent
-#   ./install.sh . ethan                       # Install to current dir
 #
 
 set -e
@@ -23,6 +23,11 @@ CYAN='\033[0;36m'
 DIM='\033[2m'
 NC='\033[0m' # No Color
 
+# GitHub repository
+REPO_OWNER="nsanta"
+REPO_NAME="on-my-agents"
+REPO_URL="https://raw.githubusercontent.com/$REPO_OWNER/$REPO_NAME/main"
+
 # Get the directory where this script is located
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
@@ -33,6 +38,9 @@ shift || true
 # Agents to install (default: all)
 AGENTS_TO_INSTALL=("$@")
 
+# Temp directory for downloaded files
+TEMP_DIR=""
+
 # Logging functions
 log_info() { echo -e "${BLUE}📦${NC} $1"; }
 log_success() { echo -e "${GREEN}✓${NC} $1"; }
@@ -40,9 +48,47 @@ log_warn() { echo -e "${YELLOW}⚠${NC} $1"; }
 log_error() { echo -e "${RED}✗${NC} $1"; }
 log_dim() { echo -e "${DIM}$1${NC}"; }
 
+# Cleanup function
+cleanup() {
+    if [[ -n "$TEMP_DIR" && -d "$TEMP_DIR" ]]; then
+        rm -rf "$TEMP_DIR"
+    fi
+}
+trap cleanup EXIT
+
+# Download agents from GitHub
+download_agents() {
+    TEMP_DIR=$(mktemp -d)
+    
+    log_info "Downloading agents from GitHub..."
+    
+    # Download agent files
+    for agent in archibald ethan mira; do
+        local url="$REPO_URL/agents/$agent.md"
+        local file="$TEMP_DIR/$agent.md"
+        
+        if curl -sL "$url" -o "$file" 2>/dev/null; then
+            if [[ -s "$file" ]]; then
+                log_dim "  Downloaded: $agent.md"
+            else
+                rm -f "$file"
+            fi
+        fi
+    done
+    
+    echo "$TEMP_DIR"
+}
+
 # Get list of available agents
 get_available_agents() {
     local agents_dir="$SCRIPT_DIR/agents"
+    
+    # If local agents directory doesn't exist or is empty, download from GitHub
+    if [[ ! -d "$agents_dir" ]] || [[ -z "$(ls -A "$agents_dir"/*.md 2>/dev/null)" ]]; then
+        log_dim "  No local agents found, checking GitHub..."
+        agents_dir=$(download_agents)
+    fi
+    
     if [[ ! -d "$agents_dir" ]]; then
         echo ""
         return
@@ -55,10 +101,22 @@ get_available_agents() {
     done
 }
 
+# Get source directory (local or temp)
+get_source_dir() {
+    local agents_dir="$SCRIPT_DIR/agents"
+    
+    if [[ -d "$agents_dir" ]] && [[ -n "$(ls -A "$agents_dir"/*.md 2>/dev/null)" ]]; then
+        echo "$agents_dir"
+    else
+        download_agents
+    fi
+}
+
 # Install a single agent
 install_agent() {
     local agent_name="$1"
-    local source_dir="$SCRIPT_DIR/agents"
+    local source_dir
+    source_dir=$(get_source_dir)
     local target_dir="$PROJECT_ROOT/_bmad/bmb/agents"
     
     local source_file="$source_dir/${agent_name}.md"
@@ -66,7 +124,7 @@ install_agent() {
     
     # Check if source exists
     if [[ ! -f "$source_file" ]]; then
-        log_warn "Agent '$agent_name' not found in $source_dir"
+        log_warn "Agent '$agent_name' not found"
         return 1
     fi
     
@@ -147,10 +205,29 @@ generate_manifest_entry() {
     echo "$hash|\"$agent_name\",\"$name\",\"$title\",\"$icon\",\"Agent\",\"Agent definition in $agent_name.md\",\"Direct and efficient.\",\"- Follow BMAD patterns\",\"bmb\",\"_bmad/bmb/agents/$agent_name.md\""
 }
 
+# Download platform script from GitHub
+download_platform_script() {
+    local platform="$1"
+    local temp_script="$TEMP_DIR/${platform}.sh"
+    local url="$REPO_URL/platform-specifics/${platform}.sh"
+    
+    if [[ -n "$TEMP_DIR" ]]; then
+        curl -sL "$url" -o "$temp_script" 2>/dev/null
+        if [[ -s "$temp_script" ]]; then
+            echo "$temp_script"
+        fi
+    fi
+}
+
 # Install platform-specific configuration
 install_platform() {
     local platform="$1"
     local platform_script="$SCRIPT_DIR/platform-specifics/${platform}.sh"
+    
+    # Try local first, then download
+    if [[ ! -f "$platform_script" ]]; then
+        platform_script=$(download_platform_script "$platform")
+    fi
     
     if [[ -f "$platform_script" ]]; then
         log_info "Configuring for $platform..."
@@ -180,7 +257,6 @@ main() {
     
     if [[ ${#AGENTS_TO_INSTALL[@]} -eq 0 ]]; then
         log_warn "No agents found to install"
-        log_info "Place agent .md files in $SCRIPT_DIR/agents/"
         exit 0
     fi
     
@@ -237,7 +313,6 @@ main() {
     
     # Install each platform
     if [[ ${#platforms[@]} -gt 0 ]]; then
-        echo ""
         for platform in "${platforms[@]}"; do
             install_platform "$platform"
         done

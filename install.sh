@@ -46,7 +46,6 @@ download_agents() {
     
     log_info "Downloading agents from GitHub..."
     
-    # Download agent files
     for agent in archibald ethan mira; do
         local url="$REPO_URL/agents/$agent.md"
         local file="$TEMP_DIR/$agent.md"
@@ -60,7 +59,6 @@ download_agents() {
         fi
     done
     
-    # Output ONLY the temp dir - this is the only stdout
     echo "$TEMP_DIR"
 }
 
@@ -68,7 +66,6 @@ download_agents() {
 get_available_agents() {
     local agents_dir="$SCRIPT_DIR/agents"
     
-    # If local agents directory doesn't exist or is empty, download from GitHub
     if [[ ! -d "$agents_dir" ]] || [[ -z "$(ls -A "$agents_dir"/*.md 2>/dev/null)" ]]; then
         log_dim "No local agents found, checking GitHub..."
         agents_dir=$(download_agents)
@@ -101,47 +98,38 @@ install_agent() {
     local agent_name="$1"
     local source_dir
     source_dir=$(get_source_dir)
-    local target_dir="$PROJECT_ROOT/_bmad/bmb/agents"
+    local target_dir="$PROJECT_ROOT/_bmad/bmm/agents"
     
     local source_file="$source_dir/${agent_name}.md"
     local target_file="$target_dir/${agent_name}.md"
     
-    # Check if source exists
     if [[ ! -f "$source_file" ]]; then
         log_warn "Agent '$agent_name' not found"
         return 1
     fi
     
-    # Create target directory
     mkdir -p "$target_dir"
     
-    # Check if already exists
     if [[ -f "$target_file" ]]; then
         log_dim "Agent '$agent_name' already exists, skipping"
         return 0
     fi
     
-    # Copy agent file
     cp "$source_file" "$target_file"
     log_success "Installed agent: $agent_name"
     return 0
 }
 
-# Update agent manifest CSV
+# Update agent manifest CSV (only update, don't create)
 update_manifest() {
     local manifest="$PROJECT_ROOT/_bmad/_config/agent-manifest.csv"
-    local agents_dir="$PROJECT_ROOT/_bmad/bmb/agents"
+    local agents_dir="$PROJECT_ROOT/_bmad/bmm/agents"
     
-    # Create manifest directory if needed
-    mkdir -p "$(dirname "$manifest")"
-    
-    # Create header if manifest doesn't exist
     if [[ ! -f "$manifest" ]]; then
-        echo '#WV|name,displayName,title,icon,role,identity,communicationStyle,principles,module,path' > "$manifest"
-        log_dim "Created new manifest"
+        log_warn "Manifest not found at $manifest"
+        return 0
     fi
     
-    # Get list of installed agents
     local installed_agents=()
     while IFS= read -r agent; do
         installed_agents+=("$agent")
@@ -152,7 +140,6 @@ update_manifest() {
         return 0
     fi
     
-    # Check which agents are already in manifest
     for agent in "${installed_agents[@]}"; do
         if ! grep -q "^[^#].*,\"$agent\"," "$manifest" 2>/dev/null; then
             local entry
@@ -168,20 +155,15 @@ update_manifest() {
 # Generate manifest entry
 generate_manifest_entry() {
     local agent_name="$1"
-    local agent_file="$PROJECT_ROOT/_bmad/bmb/agents/${agent_name}.md"
     
-    local name title icon
-    name=$(grep -E '^\s*name:' "$agent_file" 2>/dev/null | sed 's/.*name:\s*"\?\([^"]*\)\"?.*/\1/' | head -1)
-    title=$(grep -E '^\s*title:' "$agent_file" 2>/dev/null | sed 's/.*title:\s*"\?\([^"]*\)\"?.*/\1/' | head -1)
-    icon=$(grep -E '^\s*icon:' "$agent_file" 2>/dev/null | sed 's/.*icon:\s*"\?\([^"]*\)\"?.*/\1/' | head -1)
-    
-    name="${name:-$agent_name}"
-    title="${title:-Agent}"
-    icon="${icon:-🤖}"
+    # Use simple defaults - no extraction needed
+    local name="$agent_name"
+    local title="Agent"
+    local icon="🤖"
     
     local hash="#$(echo "$agent_name" | md5sum | head -c2 | tr '[:lower:]' '[:upper:]')"
     
-    echo "$hash|\"$agent_name\",\"$name\",\"$title\",\"$icon\",\"Agent\",\"Agent definition in $agent_name.md\",\"Direct and efficient.\",\"- Follow BMAD patterns\",\"bmb\",\"_bmad/bmb/agents/$agent_name.md\""
+    echo "$hash|\"$agent_name\",\"$name\",\"$title\",\"$icon\",\"Agent\",\"Agent definition in $agent_name.md\",\"Direct and efficient.\",\"- Follow BMAD patterns\",\"bmm\",\"_bmad/bmm/agents/$agent_name.md\""
 }
 
 # Download platform script from GitHub
@@ -222,12 +204,9 @@ main() {
     log_dim "Project: $PROJECT_ROOT"
     echo ""
     
-    # Resolve project path
     PROJECT_ROOT="$(cd "$PROJECT_ROOT" && pwd)"
     
-    # Get agents to install
     if [[ ${#AGENTS_TO_INSTALL[@]} -eq 0 ]]; then
-        # Use process substitution - outputs only agent names
         local agents=()
         while IFS= read -r agent; do
             agents+=("$agent")
@@ -245,7 +224,6 @@ main() {
     
     echo ""
     
-    # Install each agent
     local installed=0
     for agent in "${AGENTS_TO_INSTALL[@]}"; do
         if install_agent "$agent"; then
@@ -255,7 +233,6 @@ main() {
     
     echo ""
     
-    # Update manifest
     if [[ -d "$PROJECT_ROOT/_bmad" ]]; then
         update_manifest
     else
@@ -264,7 +241,6 @@ main() {
     
     echo ""
     
-    # Detect and install for platforms
     local platforms=()
     
     if [[ -d "$PROJECT_ROOT/.claude" ]] || [[ -n "$CLAUDE_CODE" ]]; then
@@ -283,7 +259,6 @@ main() {
         platforms+=("cursor")
     fi
     
-    # Install platforms from CLI args
     for arg in "$@"; do
         case "$arg" in
             claude-code|opencode|windsurf|cursor)
@@ -294,7 +269,6 @@ main() {
         esac
     done
     
-    # Install each platform
     if [[ ${#platforms[@]} -gt 0 ]]; then
         for platform in "${platforms[@]}"; do
             install_platform "$platform"
@@ -305,6 +279,4 @@ main() {
     log_success "Installed $installed agent(s) successfully"
 }
 
-# Run main
 main "$@"
-

@@ -1,5 +1,5 @@
 ---
-name: "builder-agent"
+name: "Ethan"
 description: "Ethan - Code Quality Guardian & Review Specialist"
 ---
 

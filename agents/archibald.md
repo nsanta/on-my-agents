@@ -1,5 +1,5 @@
 ---
-name: "builder-agent"
+name: "Archibald"
 description: "Archibald - Enhanced Agent Architect & BMAD Enforcer"
 ---
 

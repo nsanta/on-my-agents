@@ -161,9 +161,8 @@ generate_manifest_entry() {
     local title="Agent"
     local icon="🤖"
     
-    local hash="#$(echo "$agent_name" | md5sum | head -c2 | tr '[:lower:]' '[:upper:]')"
     
-    echo "$hash|\"$agent_name\",\"$name\",\"$title\",\"$icon\",\"Agent\",\"Agent definition in $agent_name.md\",\"Direct and efficient.\",\"- Follow BMAD patterns\",\"bmm\",\"_bmad/bmm/agents/$agent_name.md\""
+    echo "\"$agent_name\",\"$name\",\"$title\",\"$icon\",\"Agent\",\"Agent definition in $agent_name.md\",\"Direct and efficient.\",\"- Follow BMAD patterns\",\"bmm\",\"_bmad/bmm/agents/$agent_name.md\""
 }
 
 # Download platform script from GitHub

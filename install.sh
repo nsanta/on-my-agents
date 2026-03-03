@@ -130,22 +130,16 @@ update_manifest() {
         return 0
     fi
     
-    local installed_agents=()
-    while IFS= read -r agent; do
-        installed_agents+=("$agent")
-    done < <(ls -1 "$agents_dir"/*.md 2>/dev/null | xargs -n1 basename 2>/dev/null | sed 's/.md$//' || true)
+    local agents=("ethan" "archibald" "mira")
     
-    if [[ ${#installed_agents[@]} -eq 0 ]]; then
-        log_dim "No agents to add to manifest"
-        return 0
-    fi
-    
-    for agent in "${installed_agents[@]}"; do
-        if ! grep -q "^[^#].*,\"$agent\"," "$manifest" 2>/dev/null; then
-            local entry
-            entry=$(generate_manifest_entry "$agent")
-            echo "$entry" >> "$manifest"
-            log_dim "Added '$agent' to manifest"
+    for agent in "${agents[@]}"; do
+        if [[ -f "$agents_dir/${agent}.md" ]]; then
+            if ! grep -q "^[^#].*,\"$agent\"," "$manifest" 2>/dev/null; then
+                local entry
+                entry=$(generate_manifest_entry "$agent")
+                echo "$entry" >> "$manifest"
+                log_dim "Added '$agent' to manifest"
+            fi
         fi
     done
     
